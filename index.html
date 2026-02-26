@@ -1,0 +1,242 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Pro Bottle Shooter 🎮</title>
+
+<style>
+body{
+    margin:0;
+    background: radial-gradient(circle at top,#1f1f1f,#000);
+    font-family: Arial, sans-serif;
+    color:white;
+    text-align:center;
+    overflow:hidden;
+}
+
+h1{
+    color:gold;
+    margin:10px;
+    text-shadow:0 0 15px gold;
+}
+
+.score{
+    font-size:20px;
+    margin-bottom:5px;
+}
+
+.game{
+    position:relative;
+    width:100%;
+    height:70vh;
+    background:linear-gradient(to top,#111,#222);
+    border-top:3px solid gold;
+}
+
+.gun{
+    position:absolute;
+    bottom:10px;
+    font-size:55px;
+    filter: drop-shadow(0 0 10px red);
+}
+
+.bottle{
+    position:absolute;
+    font-size:45px;
+    transition: transform 0.2s;
+    filter: drop-shadow(0 0 10px cyan);
+}
+
+.bottle:hover{
+    transform:scale(1.2);
+}
+
+.bullet{
+    position:absolute;
+    font-size:18px;
+}
+
+.controls{
+    position:fixed;
+    bottom:0;
+    width:100%;
+    display:flex;
+    justify-content:space-around;
+    background:#111;
+    padding:10px 0;
+    border-top:2px solid gold;
+}
+
+.controls button{
+    padding:10px 20px;
+    font-size:18px;
+    border:none;
+    border-radius:10px;
+    background:gold;
+    cursor:pointer;
+    box-shadow:0 0 10px gold;
+}
+
+.particle{
+    position:absolute;
+    font-size:14px;
+    animation: explode 0.6s forwards;
+}
+
+@keyframes explode{
+    0%{opacity:1; transform:translate(0,0);}
+    100%{opacity:0; transform:translate(var(--x), var(--y));}
+}
+</style>
+</head>
+
+<body>
+
+<h1>🔥 Bottle Shooter PRO 🔥</h1>
+<div class="score">Score: <span id="score">0</span></div>
+
+<div class="game" id="gameArea">
+    <div class="gun" id="gun">🔫</div>
+</div>
+
+<div class="controls">
+    <button onclick="moveLeft()">⬅</button>
+    <button onclick="shoot()">🔥 Shoot</button>
+    <button onclick="moveRight()">➡</button>
+</div>
+
+<!-- Sound Effects -->
+<audio id="shootSound" src="https://assets.mixkit.co/sfx/preview/mixkit-short-laser-gun-shot-1670.mp3"></audio>
+<audio id="breakSound" src="https://assets.mixkit.co/sfx/preview/mixkit-breaking-glass-2059.mp3"></audio>
+
+<script>
+let score = localStorage.getItem("mobileGunScore")
+            ? parseInt(localStorage.getItem("mobileGunScore"))
+            : 0;
+
+document.getElementById("score").innerText = score;
+
+const gameArea = document.getElementById("gameArea");
+const gun = document.getElementById("gun");
+
+let gunPosition = window.innerWidth / 2;
+gun.style.left = gunPosition + "px";
+
+const shootSound = document.getElementById("shootSound");
+const breakSound = document.getElementById("breakSound");
+
+// Create bottles
+function createBottle(){
+    const bottle = document.createElement("div");
+    bottle.classList.add("bottle");
+    bottle.innerHTML="🍾";
+
+    bottle.style.left = Math.random()*90 + "%";
+    bottle.style.top = Math.random()*50 + "%";
+
+    gameArea.appendChild(bottle);
+}
+
+for(let i=0;i<5;i++){
+    createBottle();
+}
+
+// Move controls
+function moveLeft(){
+    gunPosition -= 25;
+    if(gunPosition < 0) gunPosition = 0;
+    gun.style.left = gunPosition + "px";
+}
+
+function moveRight(){
+    gunPosition += 25;
+    if(gunPosition > window.innerWidth - 60)
+        gunPosition = window.innerWidth - 60;
+    gun.style.left = gunPosition + "px";
+}
+
+document.addEventListener("keydown", function(e){
+    if(e.key === "ArrowLeft") moveLeft();
+    if(e.key === "ArrowRight") moveRight();
+    if(e.key === " ") shoot();
+});
+
+// Shoot
+function shoot(){
+    shootSound.currentTime = 0;
+    shootSound.play();
+
+    const bullet = document.createElement("div");
+    bullet.classList.add("bullet");
+    bullet.innerHTML="🔥";
+
+    bullet.style.left = gun.offsetLeft + 20 + "px";
+    bullet.style.top = gun.offsetTop + "px";
+
+    gameArea.appendChild(bullet);
+
+    let move = setInterval(()=>{
+        bullet.style.top = bullet.offsetTop - 10 + "px";
+        checkCollision(bullet);
+
+        if(bullet.offsetTop < 0){
+            bullet.remove();
+            clearInterval(move);
+        }
+    },25);
+}
+
+// Collision
+function checkCollision(bullet){
+    const bottles = document.querySelectorAll(".bottle");
+
+    bottles.forEach(bottle=>{
+        const bRect = bottle.getBoundingClientRect();
+        const bulletRect = bullet.getBoundingClientRect();
+
+        if(
+            bulletRect.left < bRect.right &&
+            bulletRect.right > bRect.left &&
+            bulletRect.top < bRect.bottom &&
+            bulletRect.bottom > bRect.top
+        ){
+            breakSound.currentTime = 0;
+            breakSound.play();
+
+            createExplosion(bottle.offsetLeft, bottle.offsetTop);
+
+            bottle.remove();
+            bullet.remove();
+
+            score++;
+            localStorage.setItem("mobileGunScore", score);
+            document.getElementById("score").innerText = score;
+
+            createBottle();
+        }
+    });
+}
+
+// Explosion
+function createExplosion(x,y){
+    for(let i=0;i<10;i++){
+        const particle = document.createElement("div");
+        particle.classList.add("particle");
+        particle.innerHTML="✨";
+
+        particle.style.left = x+"px";
+        particle.style.top = y+"px";
+
+        particle.style.setProperty("--x", (Math.random()*100-50)+"px");
+        particle.style.setProperty("--y", (Math.random()*100-50)+"px");
+
+        gameArea.appendChild(particle);
+
+        setTimeout(()=>particle.remove(),600);
+    }
+}
+</script>
+
+</body>
+</html>
